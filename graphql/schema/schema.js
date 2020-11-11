@@ -7,6 +7,9 @@ const {
   GraphQLFloat,
   GraphQLList,
 } = require("graphql");
+const bcrypt = require("bcrypt");
+
+const saltRounds = 12;
 
 const Event = require("../../models/event.model");
 const User = require("../../models/user.model");
@@ -60,6 +63,8 @@ const bookingType = new GraphQLObjectType({
         return User.findById(parent.user);
       },
     },
+    createdAt: { type: GraphQLString },
+    updatedAt: { type: GraphQLString },
   }),
 });
 
@@ -121,12 +126,17 @@ const RootMutation = new GraphQLObjectType({
         },
       },
       resolve(parent, args) {
-        const newUser = new User({
-          email: args.email,
-          password: args.password,
-          createdEvents: args.createdEvents,
-        });
-        return newUser.save();
+        return bcrypt
+          .hash(args.password, saltRounds)
+          .then((hashedPwd) => {
+            const newUser = new User({
+              email: args.email,
+              password: hashedPwd,
+              createdEvents: args.createdEvents,
+            });
+            return newUser.save();
+          })
+          .catch((err) => console.log(err));
       },
     },
     addEvent: {
