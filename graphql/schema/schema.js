@@ -116,7 +116,7 @@ const RootQuery = new GraphQLObjectType({
 const RootMutation = new GraphQLObjectType({
   name: "RootMutationType",
   fields: {
-    addUser: {
+    register: {
       type: userType,
       args: {
         email: { type: GraphQLString },
@@ -126,15 +126,47 @@ const RootMutation = new GraphQLObjectType({
         },
       },
       resolve(parent, args) {
-        return bcrypt
-          .hash(args.password, saltRounds)
-          .then((hashedPwd) => {
-            const newUser = new User({
-              email: args.email,
-              password: hashedPwd,
-              createdEvents: args.createdEvents,
-            });
-            return newUser.save();
+        return User.find({ email: args.email })
+          .then((user) => {
+            if (user) {
+              throw new Error("User already exists!");
+            }
+            return bcrypt
+              .hash(args.password, saltRounds)
+              .then((hashedPwd) => {
+                const newUser = new User({
+                  email: args.email,
+                  password: hashedPwd,
+                  createdEvents: args.createdEvents,
+                });
+                return newUser.save();
+              })
+              .catch((err) => console.log(err));
+          })
+          .catch((err) => console.log(err));
+      },
+    },
+    login: {
+      type: userType,
+      args: {
+        email: { type: GraphQLString },
+        password: { type: GraphQLString },
+      },
+      resolve(parent, args) {
+        return User.findOne({ email: args.email })
+          .then((user) => {
+            if (!user) {
+              throw new Error("User not found");
+            }
+            return bcrypt
+              .compare(args.password, user.password)
+              .then((result) => {
+                if (result) {
+                  return { ...user._doc, password: null };
+                }
+                throw new Error("Incorrect Password");
+              })
+              .catch((err) => console.log(err));
           })
           .catch((err) => console.log(err));
       },
@@ -171,6 +203,15 @@ const RootMutation = new GraphQLObjectType({
           user: args.user,
         });
         return newBooking.save();
+      },
+    },
+    cancelBooking: {
+      type: bookingType,
+      args: {
+        _id: { type: GraphQLID },
+      },
+      resolve(parent, args) {
+        return Booking.findByIdAndDelete(args._id);
       },
     },
   },
