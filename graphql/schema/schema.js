@@ -1,125 +1,63 @@
 const {
   GraphQLSchema,
   GraphQLObjectType,
+  GraphQLID,
   GraphQLString,
   GraphQLInt,
-  GraphQLID,
-  GraphQLList,
   GraphQLFloat,
+  GraphQLList,
 } = require("graphql");
 
-const eventList = [
-  {
-    id: "1",
-    title: "Cricket",
-    description: "ipl",
-    price: 12.46,
-    date: "05/11/2020",
-    // createdId: "2",
-    // bookedIdList: ["1", "3"],
-  },
-  {
-    id: "2",
-    title: "Football",
-    description: "fifa",
-    price: 99.3,
-    date: "17/03/2021",
-    // createdId: "3",
-    // bookedIdList: ["2"],
-  },
-  {
-    id: "3",
-    title: "Basketball",
-    description: "nba",
-    price: 40,
-    date: "31/12/2020",
-    // createdId: "2",
-    // bookedIdList: ["1"],
-  },
-];
-const userList = [
-  {
-    id: "1",
-    email: "virat@gmail.com",
-    password: "313434",
-    bookedIdList: ["1", "2"],
-    createdIdList: ["3"],
-  },
-  {
-    id: "2",
-    email: "chris@gmail.com",
-    password: "478531",
-    bookedIdList: ["3"],
-    createdIdList: ["1"],
-  },
-  {
-    id: "3",
-    email: "abraham@gmail.com",
-    password: "8932486",
-    bookedIdList: ["1", "2", "3"],
-    createdIdList: [],
-  },
-];
+const Event = require("../../models/event.model");
+const User = require("../../models/user.model");
+const Booking = require("../../models/booking.model");
 
-const EventType = new GraphQLObjectType({
+const eventType = new GraphQLObjectType({
   name: "Event",
   fields: () => ({
-    id: {
-      type: GraphQLID,
+    _id: { type: GraphQLID },
+    title: { type: GraphQLString },
+    description: { type: GraphQLString },
+    price: { type: GraphQLFloat },
+    date: { type: GraphQLString },
+    creator: {
+      type: userType,
+      resolve(parent, args) {
+        return User.findById(parent.creator);
+      },
     },
-    title: {
-      type: GraphQLString,
-    },
-    description: {
-      type: GraphQLString,
-    },
-    price: {
-      type: GraphQLFloat,
-    },
-    date: {
-      type: GraphQLString,
-    },
-    // createdBy: {
-    //   type: UserType,
-    //   resolve(parent, args) {
-    //     return userList.find((user) => user.id === parent.createdId);
-    //   },
-    // },
-    // bookedBy: {
-    //   type: new GraphQLList(UserType),
-    //   resolve(parent, args) {
-    //     return userList.filter((user) => parent.bookedIdList.includes(user.id));
-    //   },
-    // },
   }),
 });
 
-const UserType = new GraphQLObjectType({
+const userType = new GraphQLObjectType({
   name: "User",
   fields: () => ({
-    id: {
-      type: GraphQLID,
-    },
-    email: {
-      type: GraphQLString,
-    },
-    password: {
-      type: GraphQLString,
-    },
-    eventsBooked: {
-      type: new GraphQLList(EventType),
+    _id: { type: GraphQLID },
+    email: { type: GraphQLString },
+    password: { type: GraphQLString },
+    createdEvents: {
+      type: new GraphQLList(eventType),
       resolve(parent, args) {
-        return eventList.filter((event) =>
-          parent.bookedIdList.includes(event.id)
-        );
+        return parent.createdEvents.map((eventId) => Event.findById(eventId));
       },
     },
-    eventsCreated: {
-      type: new GraphQLList(EventType),
+  }),
+});
+
+const bookingType = new GraphQLObjectType({
+  name: "Booking",
+  fields: () => ({
+    _id: { type: GraphQLID },
+    event: {
+      type: eventType,
       resolve(parent, args) {
-        return eventList.filter((event) =>
-          parent.createdIdList.includes(event.id)
-        );
+        return Event.findById(parent.event);
+      },
+    },
+    user: {
+      type: userType,
+      resolve(parent, args) {
+        return User.findById(parent.user);
       },
     },
   }),
@@ -129,29 +67,42 @@ const RootQuery = new GraphQLObjectType({
   name: "RootQueryType",
   fields: {
     events: {
-      type: new GraphQLList(EventType),
+      type: new GraphQLList(eventType),
       resolve(parent, args) {
-        return eventList;
+        return Event.find();
       },
     },
     users: {
-      type: new GraphQLList(UserType),
+      type: new GraphQLList(userType),
       resolve(parent, args) {
-        return userList;
+        return User.find();
+      },
+    },
+    bookings: {
+      type: new GraphQLList(bookingType),
+      resolve(parent, args) {
+        return Booking.find();
       },
     },
     event: {
-      type: EventType,
-      args: { id: { type: GraphQLID } },
+      type: eventType,
+      args: { _id: { type: GraphQLID } },
       resolve(parent, args) {
-        return eventList.find((event) => event.id === args.id);
+        return Event.findById(args._id);
       },
     },
     user: {
-      type: UserType,
-      args: { id: { type: GraphQLID } },
+      type: userType,
+      args: { _id: { type: GraphQLID } },
       resolve(parent, args) {
-        return userList.find((user) => user.id === args.id);
+        return User.findById(args._id);
+      },
+    },
+    booking: {
+      type: bookingType,
+      args: { _id: { type: GraphQLID } },
+      resolve(parent, args) {
+        return Booking.findById(args._id);
       },
     },
   },
@@ -160,68 +111,62 @@ const RootQuery = new GraphQLObjectType({
 const RootMutation = new GraphQLObjectType({
   name: "RootMutationType",
   fields: {
-    createEvent: {
-      type: EventType,
+    addUser: {
+      type: userType,
       args: {
-        title: {
-          type: GraphQLString,
-        },
-        description: {
-          type: GraphQLString,
-        },
-        price: {
-          type: GraphQLFloat,
-        },
-        date: {
-          type: GraphQLString,
+        email: { type: GraphQLString },
+        password: { type: GraphQLString },
+        createdEvents: {
+          type: new GraphQLList(GraphQLString),
         },
       },
       resolve(parent, args) {
-        const newEvent = {
-          id: Math.random().toString(),
+        const newUser = new User({
+          email: args.email,
+          password: args.password,
+          createdEvents: args.createdEvents,
+        });
+        return newUser.save();
+      },
+    },
+    addEvent: {
+      type: eventType,
+      args: {
+        title: { type: GraphQLString },
+        description: { type: GraphQLString },
+        price: { type: GraphQLFloat },
+        date: { type: GraphQLString },
+        creator: { type: GraphQLString },
+      },
+      resolve(parent, args) {
+        const newEvent = new Event({
           title: args.title,
           description: args.description,
           price: args.price,
           date: args.date,
-        };
-        eventList.push(newEvent);
-        return newEvent;
+          creator: args.creator,
+        });
+        return newEvent.save();
       },
     },
-    createUser: {
-      type: UserType,
+    addBooking: {
+      type: bookingType,
       args: {
-        id: {
-          type: GraphQLID,
-        },
-        email: {
-          type: GraphQLString,
-        },
-        password: {
-          type: GraphQLString,
-        },
-        // eventsBooked: {
-        //   type: new GraphQLList(EventType),
-        // },
-        // eventsCreated: {
-        //   type: new GraphQLList(EventType),
-        // },
+        event: { type: GraphQLString },
+        user: { type: GraphQLString },
       },
       resolve(parent, args) {
-        const newUser = {
-          id: Math.random().toString(),
-          email: args.email,
-          password: args.password,
-          eventsBooked: args.eventsBooked,
-          eventsCreated: args.eventsCreated,
-        };
-        userList.push(newUser);
-        return newUser;
+        const newBooking = new Booking({
+          event: args.event,
+          user: args.user,
+        });
+        return newBooking.save();
       },
     },
   },
 });
 
-const schema = new GraphQLSchema({ query: RootQuery, mutation: RootMutation });
-
-module.exports = schema;
+module.exports = new GraphQLSchema({
+  query: RootQuery,
+  mutation: RootMutation,
+});
