@@ -8,6 +8,7 @@ const {
   GraphQLList,
 } = require("graphql");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 const saltRounds = 12;
 
@@ -26,7 +27,12 @@ const eventType = new GraphQLObjectType({
     creator: {
       type: userType,
       resolve(parent, args) {
-        return User.findById(parent.creator);
+        return User.findById(parent.creator)
+          .then((user) => ({
+            ...user._doc,
+            password: null,
+          }))
+          .catch((err) => console.log(err));
       },
     },
   }),
@@ -60,11 +66,22 @@ const bookingType = new GraphQLObjectType({
     user: {
       type: userType,
       resolve(parent, args) {
-        return User.findById(parent.user);
+        return User.findById(parent.user).then((user) => {
+          return { ...user._doc, password: null };
+        });
       },
     },
     createdAt: { type: GraphQLString },
     updatedAt: { type: GraphQLString },
+  }),
+});
+
+const authDataType = new GraphQLObjectType({
+  name: "AuthData",
+  fields: () => ({
+    userId: { type: GraphQLID },
+    token: { type: GraphQLString },
+    tokenExpiration: { type: GraphQLInt },
   }),
 });
 
@@ -80,12 +97,19 @@ const RootQuery = new GraphQLObjectType({
     users: {
       type: new GraphQLList(userType),
       resolve(parent, args) {
-        return User.find();
+        return User.find()
+          .then((users) => {
+            return users.map((user) => ({ ...user._doc, password: null }));
+          })
+          .catch((err) => console.log(err));
       },
     },
     bookings: {
       type: new GraphQLList(bookingType),
-      resolve(parent, args) {
+      resolve(parent, args, req) {
+        if (!req.isAuth) {
+          throw new Error("Unauthenticated");
+        }
         return Booking.find();
       },
     },
@@ -100,54 +124,26 @@ const RootQuery = new GraphQLObjectType({
       type: userType,
       args: { _id: { type: GraphQLID } },
       resolve(parent, args) {
-        return User.findById(args._id);
+        return User.findById(args._id)
+          .then((user) => ({
+            ...user._doc,
+            password: null,
+          }))
+          .catch((err) => console.log(err));
       },
     },
     booking: {
       type: bookingType,
       args: { _id: { type: GraphQLID } },
-      resolve(parent, args) {
+      resolve(parent, args, req) {
+        if (!req.isAuth) {
+          throw new Error("Unauthenticated");
+        }
         return Booking.findById(args._id);
       },
     },
-  },
-});
-
-const RootMutation = new GraphQLObjectType({
-  name: "RootMutationType",
-  fields: {
-    register: {
-      type: userType,
-      args: {
-        email: { type: GraphQLString },
-        password: { type: GraphQLString },
-        createdEvents: {
-          type: new GraphQLList(GraphQLString),
-        },
-      },
-      resolve(parent, args) {
-        return User.find({ email: args.email })
-          .then((user) => {
-            if (user) {
-              throw new Error("User already exists!");
-            }
-            return bcrypt
-              .hash(args.password, saltRounds)
-              .then((hashedPwd) => {
-                const newUser = new User({
-                  email: args.email,
-                  password: hashedPwd,
-                  createdEvents: args.createdEvents,
-                });
-                return newUser.save();
-              })
-              .catch((err) => console.log(err));
-          })
-          .catch((err) => console.log(err));
-      },
-    },
     login: {
-      type: userType,
+      type: authDataType,
       args: {
         email: { type: GraphQLString },
         password: { type: GraphQLString },
@@ -161,10 +157,61 @@ const RootMutation = new GraphQLObjectType({
             return bcrypt
               .compare(args.password, user.password)
               .then((result) => {
-                if (result) {
-                  return { ...user._doc, password: null };
+                if (!result) {
+                  throw new Error("Incorrect Password");
                 }
-                throw new Error("Incorrect Password");
+                // return { ...user._doc, password: null };
+                const token = jwt.sign(
+                  { userId: user._id },
+                  process.env.JWT_SECRET_KEY,
+                  {
+                    expiresIn: "1h",
+                  }
+                );
+
+                return {
+                  userId: user._id,
+                  token: token,
+                  tokenExpiration: 1,
+                };
+              })
+              .catch((err) => console.log(err));
+          })
+          .catch((err) => console.log(err));
+      },
+    },
+  },
+});
+
+const RootMutation = new GraphQLObjectType({
+  name: "RootMutationType",
+  fields: {
+    register: {
+      type: userType,
+      args: {
+        email: { type: GraphQLString },
+        password: { type: GraphQLString },
+      },
+      resolve(parent, args) {
+        return User.findOne({ email: args.email })
+          .then((user) => {
+            if (user) {
+              throw new Error("User already exists!");
+            }
+            return bcrypt
+              .hash(args.password, saltRounds)
+              .then((hashedPwd) => {
+                const newUser = new User({
+                  email: args.email,
+                  password: hashedPwd,
+                  createdEvents: [],
+                });
+                return newUser
+                  .save()
+                  .then((user) => {
+                    return { ...user._doc, password: null };
+                  })
+                  .catch((err) => console.log(err));
               })
               .catch((err) => console.log(err));
           })
@@ -178,29 +225,44 @@ const RootMutation = new GraphQLObjectType({
         description: { type: GraphQLString },
         price: { type: GraphQLFloat },
         date: { type: GraphQLString },
-        creator: { type: GraphQLString },
       },
-      resolve(parent, args) {
+      resolve(parent, args, req) {
+        if (!req.isAuth) {
+          throw new Error("Unauthenticated");
+        }
         const newEvent = new Event({
           title: args.title,
           description: args.description,
           price: args.price,
           date: args.date,
-          creator: args.creator,
+          creator: req.userId,
         });
-        return newEvent.save();
+        return newEvent
+          .save()
+          .then((event) => {
+            User.findById(req.userId)
+              .then((user) => {
+                user.createdEvents.push(event._id);
+                user.save();
+                return event;
+              })
+              .catch((err) => console.log(err));
+          })
+          .catch((err) => console.log(err));
       },
     },
     addBooking: {
       type: bookingType,
       args: {
         event: { type: GraphQLString },
-        user: { type: GraphQLString },
       },
-      resolve(parent, args) {
+      resolve(parent, args, req) {
+        if (!req.isAuth) {
+          throw new Error("Unauthenticated");
+        }
         const newBooking = new Booking({
           event: args.event,
-          user: args.user,
+          user: req.userId,
         });
         return newBooking.save();
       },
@@ -210,7 +272,10 @@ const RootMutation = new GraphQLObjectType({
       args: {
         _id: { type: GraphQLID },
       },
-      resolve(parent, args) {
+      resolve(parent, args, req) {
+        if (!req.isAuth) {
+          throw new Error("Unauthenticated");
+        }
         return Booking.findByIdAndDelete(args._id);
       },
     },
