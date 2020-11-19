@@ -3,11 +3,14 @@ const mongoose = require("mongoose");
 const { graphqlHTTP } = require("express-graphql");
 
 const schema = require("./graphql/schema/schema");
+const isAuth = require("./middlewares/isAuth");
 
 const app = express();
 require("dotenv").config();
 
 const PORT = 5000 || process.env.PORT;
+
+app.use(isAuth);
 
 app.use(
   "/graphql",
