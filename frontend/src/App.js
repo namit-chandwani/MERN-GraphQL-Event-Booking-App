@@ -5,6 +5,7 @@ import Register from "./components/Register";
 import Events from "./components/Events";
 import Bookings from "./components/Bookings";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           <Route path="/events" component={Events}></Route>
           <Route path="/bookings" component={Bookings}></Route>
         </Switch>
+        <Footer />
       </BrowserRouter>
     </div>
   );
