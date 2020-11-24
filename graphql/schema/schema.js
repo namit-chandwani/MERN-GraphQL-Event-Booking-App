@@ -234,7 +234,7 @@ const RootMutation = new GraphQLObjectType({
           title: args.title,
           description: args.description,
           price: args.price,
-          date: args.date,
+          date: new Date(args.date),
           creator: req.userId,
         });
         return newEvent
