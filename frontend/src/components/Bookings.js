@@ -1,7 +1,31 @@
 import React, { Component } from "react";
+import { gql } from "@apollo/client";
+import { graphql } from "@apollo/client/react/hoc";
 
+const getBookings = gql`
+  query getBookingsQuery {
+    bookings {
+      _id
+      event {
+        _id
+        title
+        description
+        price
+        date
+      }
+      user {
+        _id
+        email
+        password
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
 export class Bookings extends Component {
   render() {
+    console.log(this.props);
     return (
       <div>
         <section className="text-gray-500 bg-gray-900 body-font">
@@ -139,4 +163,4 @@ export class Bookings extends Component {
   }
 }
 
-export default Bookings;
+export default graphql(getBookings)(Bookings);
