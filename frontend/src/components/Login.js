@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { gql, useQuery, useLazyQuery } from "@apollo/client";
-
+import React, { useState, useContext } from "react";
+import { gql, useLazyQuery } from "@apollo/client";
+import AuthContextProvider from "../context/authContext";
 const LOGIN_USER_QUERY = gql`
   query loginQuery($email: String!, $password: String!) {
     login(email: $email, password: $password) {
@@ -11,20 +11,10 @@ const LOGIN_USER_QUERY = gql`
   }
 `;
 
-// const LOGIN_USER_QUERY = gql`
-//   query loginQuery {
-//     login(email: "chahal@gmail.com", password: "chessmaster") {
-//       userId
-//       token
-//       tokenExpiration
-//     }
-//   }
-// `;
-
 const Login = (props) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // const [clicked, setClicked] = useState(false);
+  const authContext = useContext(AuthContextProvider);
 
   const onChangeHandler = (e) => {
     e.target.name === "email"
@@ -32,78 +22,26 @@ const Login = (props) => {
       : setPassword(e.target.value);
   };
 
-  // useEffect(() => {
-  //   const { loading, error, data } = useQuery(LOGIN_USER_QUERY, {
-  //     variables: { email, password },
-  //   });
-  //   if (loading) {
-  //     console.log("Loading...");
-  //   }
-  //   if (error) {
-  //     console.log("Error: ", error);
-  //     return;
-  //   }
-  //   console.log(data);
-  // }, [clicked]);
-  const TrialComponent = () => {
-    // const [getCountries, { loading, data }] = useLazyQuery(GET_COUNTRIES);
-
+  const PerformLoginComponent = () => {
     const [performLogin, { loading, data }] = useLazyQuery(LOGIN_USER_QUERY, {
       variables: { email, password },
     });
     if (loading) {
       console.log("Loading...");
     }
-    // if (error) {
-    //   console.log("Error: ", error);
-    //   return;
-    // }
-    console.log("Hello");
     if (data) {
-      console.log("Data is: ", data);
+      // console.log("Data is: ", data);
+      authContext.login(data.login.token, data.login.userId);
+      props.history.push("/events");
     }
     return (
       <button
-        // onClick={onSubmitHandler}
         onClick={performLogin}
         className="text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg"
       >
         Login
       </button>
     );
-  };
-
-  const onSubmitHandler = (e) => {
-    e.preventDefault();
-    const user = {
-      email,
-      password,
-    };
-    console.log(user);
-    // performLogin();
-    // setClicked(true);
-
-    // const { loading, error, data } = useQuery(LOGIN_USER_QUERY, {
-    //   variables: { email, password },
-    // });
-    // if (loading) {
-    //   console.log("Loading...");
-    // }
-    // if (error) {
-    //   console.log("Error: ", error);
-    //   return;
-    // }
-    // console.log(data);
-    // this.props
-    //   .loginQuery({ variables: { email, password } })
-    //   .then((res) => console.log(res))
-    //   .catch((err) => console.log(err));
-    // this.performLogin(email, password);
-    // this.setState({
-    //   token: data.login.token,
-    // });
-    // console.log("hi", this.props.loginUserQuery2);
-    // console.log("Prop is: ", props);
   };
 
   return (
@@ -159,7 +97,7 @@ const Login = (props) => {
                   className="w-full bg-gray-700 rounded border border-gray-600 focus:border-indigo-500 text-base outline-none text-gray-100 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out"
                 />
               </div>
-              <TrialComponent />
+              <PerformLoginComponent />
               <p className="text-xs text-gray-600 mt-3">Random text</p>
             </div>
           </div>
