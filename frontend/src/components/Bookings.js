@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { gql, useQuery } from "@apollo/client";
+import { gql, useQuery, useMutation } from "@apollo/client";
 import authContextProvider from "../context/authContext";
 
 const GET_BOOKINGS_QUERY = gql`
@@ -27,6 +27,14 @@ const GET_BOOKINGS_QUERY = gql`
   }
 `;
 
+const CANCEL_BOOKING_MUTATION = gql`
+  mutation cancelBookingMutation($eventId: ID!) {
+    cancelBooking(_id: $eventId) {
+      _id
+    }
+  }
+`;
+
 let dateFormatConverter = (UNIX_timestamp) => {
   let a = new Date(Number(UNIX_timestamp));
   let months = [
@@ -50,7 +58,44 @@ let dateFormatConverter = (UNIX_timestamp) => {
   return { day, month, year };
 };
 
-const BookingList = ({ bookings, userId }) => {
+const CancelBooking = ({ booking, userId, token }) => {
+  const [performCancellation, { loading, error, data }] = useMutation(
+    CANCEL_BOOKING_MUTATION,
+    {
+      variables: {
+        eventId: booking.event._id,
+      },
+      context: {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      },
+    }
+  );
+  if (loading) {
+    console.log("Loading...");
+  }
+  if (error) {
+    return console.log(error);
+  }
+  if (data) {
+    console.log("Data is: ", data);
+  }
+  return booking.event.creator._id !== userId ? (
+    <button
+      onClick={performCancellation}
+      className="flex-shrink-0 text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg mt-10 sm:mt-0"
+    >
+      Cancel Booking
+    </button>
+  ) : (
+    <button className="bg-gray-600 hover:bg-grey text-white py-2 px-4 rounded inline-flex items-center border-0 py-2 px-8 focus:outline-none cursor-not-allowed">
+      You are the owner of this event
+    </button>
+  );
+};
+
+const BookingList = ({ bookings, userId, token }) => {
   return bookings.map((booking) => {
     console.log(booking.event.creator);
     const date = dateFormatConverter(booking.event.date);
@@ -87,15 +132,7 @@ const BookingList = ({ bookings, userId }) => {
               <h1 className="flex-grow sm:pr-16 title-font">
                 {date.day + " " + date.month + ", " + date.year}
               </h1>
-              {booking.event.creator._id !== userId ? (
-                <button className="flex-shrink-0 text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg mt-10 sm:mt-0">
-                  Cancel Booking
-                </button>
-              ) : (
-                <button className="bg-gray-600 hover:bg-grey text-white py-2 px-4 rounded inline-flex items-center border-0 py-2 px-8 focus:outline-none cursor-not-allowed">
-                  You are the owner of this event
-                </button>
-              )}
+              <CancelBooking booking={booking} userId={userId} token={token} />
             </p>
           </div>
         </div>
@@ -135,6 +172,7 @@ const Bookings = (props) => {
           <BookingList
             bookings={data ? data.bookings : []}
             userId={authContext.userId}
+            token={authContext.token}
           />
         </div>
       </section>
