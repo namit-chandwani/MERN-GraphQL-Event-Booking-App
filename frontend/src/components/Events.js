@@ -1,9 +1,9 @@
-import React, { Component } from "react";
-import { gql } from "@apollo/client";
-import { graphql } from "@apollo/client/react/hoc";
+import React, { useContext } from "react";
+import { gql, useQuery } from "@apollo/client";
 import Modal from "./Modal";
+import authContextProvider from "../context/authContext";
 
-const getEvents = gql`
+const GET_EVENTS_QUERY = gql`
   query getEventsQuery {
     events {
       _id
@@ -39,12 +39,12 @@ let dateFormatConverter = (UNIX_timestamp) => {
 };
 
 const EventList = (events) => {
-  console.log(events);
+  // console.log(events);
   return events.map((event) => {
     return (
       <div
         key={event._id}
-        className="py-8 px-4 lg:w-1/3 border-2 border-blue-500 border-opacity-25 m-4 ml-20"
+        className="py-8 px-4 lg:w-1/3 border-2 border-blue-500 border-opacity-25 m-4 ml-20 mb-20"
       >
         <div className="h-full flex items-start">
           <div className="w-12 flex-shrink-0 flex flex-col text-center leading-none">
@@ -74,39 +74,42 @@ const EventList = (events) => {
   });
 };
 
-export class Events extends Component {
-  render() {
-    // if (!this.props.data.loading) {
-    //   // console.log(this.props.data.events);
-    //   EventList(this.props.data.events);
-    // }
-    return (
-      <div>
+const Events = () => {
+  const authContext = useContext(authContextProvider);
+  const { loading, error, data } = useQuery(GET_EVENTS_QUERY);
+  if (loading) {
+    console.log("Loading...");
+  }
+  if (error) {
+    console.log("Error: ", error);
+  }
+  if (data) {
+    console.log("Data is: ", data);
+  }
+  return (
+    <div>
+      <section className="text-gray-500 bg-gray-900 body-font">
         <section className="text-gray-500 bg-gray-900 body-font">
-          <section className="text-gray-500 bg-gray-900 body-font">
-            <div className="container px-5 py-24 mx-auto">
-              <div className="lg:w-2/3 flex flex-col sm:flex-row sm:items-center items-start mx-auto">
-                <h1 className="flex-grow sm:pr-16 text-5xl font-medium title-font text-white">
-                  Events
-                </h1>
-                <Modal />
-              </div>
-            </div>
-          </section>
-          <div
-            className="container px-5 py-15 mx-auto"
-            style={{ minHeight: "86vh" }}
-          >
-            <div className="flex flex-wrap -mx-4 -my-8">
-              {!this.props.data.loading
-                ? EventList(this.props.data.events)
-                : ""}
+          <div className="container px-5 py-24 mx-auto">
+            <div className="lg:w-2/3 flex flex-col sm:flex-row sm:items-center items-start mx-auto">
+              <h1 className="flex-grow sm:pr-16 text-5xl font-medium title-font text-white">
+                Events
+              </h1>
+              <Modal />
             </div>
           </div>
         </section>
-      </div>
-    );
-  }
-}
+        <div
+          className="container px-5 py-15 mx-auto"
+          style={{ minHeight: "86vh" }}
+        >
+          <div className="flex flex-wrap -mx-4 -my-8">
+            {data ? EventList(data.events) : []}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
 
-export default graphql(getEvents)(Events);
+export default Events;
