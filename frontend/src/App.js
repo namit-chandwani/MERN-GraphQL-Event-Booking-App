@@ -1,5 +1,5 @@
 import "./App.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Switch, Route, Redirect, BrowserRouter } from "react-router-dom";
 import { ApolloClient, ApolloProvider, InMemoryCache } from "@apollo/client";
 import Login from "./components/Login";
@@ -19,7 +19,13 @@ const client = new ApolloClient({
 });
 
 function App() {
-  const [token, setToken] = useState(null);
+  const [token, setToken] = useState(
+    localStorage.getItem("token")
+      ? localStorage.getItem("token") === "null"
+        ? null
+        : localStorage.getItem("token")
+      : null
+  );
   const [userId, setUserId] = useState(null);
   const login = (token, userId) => {
     setToken(token);
@@ -28,7 +34,12 @@ function App() {
   const logout = () => {
     setToken(null);
     setUserId(null);
+    // localStorage.setItem("token", null);
   };
+
+  useEffect(() => {
+    localStorage.setItem("token", token);
+  }, [token]);
 
   return (
     <ApolloProvider client={client}>
