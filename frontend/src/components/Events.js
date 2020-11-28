@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { gql, useQuery } from "@apollo/client";
+import { gql, useQuery, useMutation } from "@apollo/client";
 import Modal from "./Modal";
 import authContextProvider from "../context/authContext";
 
@@ -11,6 +11,13 @@ const GET_EVENTS_QUERY = gql`
       description
       price
       date
+    }
+  }
+`;
+const BOOK_EVENT_MUTATION = gql`
+  mutation bookEventMutation($eventId: String!) {
+    addBooking(event: $eventId) {
+      _id
     }
   }
 `;
@@ -38,7 +45,44 @@ let dateFormatConverter = (UNIX_timestamp) => {
   return { day, month, year };
 };
 
-const EventList = (events) => {
+const BookEvent = ({ token, event }) => {
+  const [performBooking, { loading, error, data }] = useMutation(
+    BOOK_EVENT_MUTATION,
+    {
+      variables: {
+        eventId: event._id,
+      },
+      context: {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      },
+    }
+  );
+  if (loading) {
+    console.log("Loading...");
+  }
+  if (error) {
+    return console.log(error);
+  }
+  if (data) {
+    console.log("Data is: ", data);
+  }
+  return (
+    <button
+      onClick={token && performBooking}
+      className={
+        token
+          ? "inline-flex items-center flex-shrink-0 text-white bg-green-400 border-0 py-1 px-4 focus:outline-none hover:bg-green-600 rounded mt-10 sm:mt-0"
+          : "bg-gray-600 hover:bg-grey text-white py-2 px-4 rounded inline-flex items-center border-0 py-2 px-8 focus:outline-none cursor-not-allowed"
+      }
+    >
+      Book
+    </button>
+  );
+};
+
+const EventList = (events, token) => {
   // console.log(events);
   return events.map((event) => {
     return (
@@ -64,9 +108,7 @@ const EventList = (events) => {
               {event.title}
             </h1>
             <p className="leading-relaxed mb-5">{event.description}</p>
-            <button className="inline-flex items-center flex-shrink-0 text-white bg-green-400 border-0 py-1 px-4 focus:outline-none hover:bg-green-600 rounded mt-10 sm:mt-0">
-              Book
-            </button>
+            <BookEvent token={token} event={event} />
           </div>
         </div>
       </div>
@@ -84,7 +126,7 @@ const Events = () => {
     console.log("Error: ", error);
   }
   if (data) {
-    console.log("Data is: ", data);
+    console.log("Data is: ", data.events);
   }
   return (
     <div>
@@ -104,7 +146,7 @@ const Events = () => {
           style={{ minHeight: "86vh" }}
         >
           <div className="flex flex-wrap -mx-4 -my-8">
-            {data ? EventList(data.events) : []}
+            {data ? EventList(data.events, authContext.token) : []}
           </div>
         </div>
       </section>
