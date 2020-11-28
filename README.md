@@ -1,1 +1,1 @@
-# GraphQL-React : Event Booking App
+# MERNG Stack : Event Booking App
