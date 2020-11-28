@@ -27,6 +27,7 @@ function App() {
       : null
   );
   const [userId, setUserId] = useState(null);
+  const [loggedOut, setLoggedOut] = useState(false);
   const login = (token, userId) => {
     setToken(token);
     setUserId(userId);
@@ -34,7 +35,7 @@ function App() {
   const logout = () => {
     setToken(null);
     setUserId(null);
-    // localStorage.setItem("token", null);
+    setLoggedOut(true);
   };
 
   useEffect(() => {
@@ -54,6 +55,9 @@ function App() {
               {token && <Redirect exact from="/" to="/events" />}
               {token && <Redirect exact from="/login" to="/events" />}
               {token && <Redirect exact from="/register" to="/events" />}
+              {!token && loggedOut && (
+                <Redirect exact from="/events" to="/login" />
+              )}
               {!token && <Redirect exact from="/bookings" to="/login" />}
               {!token && <Route path="/login" component={Login}></Route>}
               {!token && <Route path="/register" component={Register}></Route>}
