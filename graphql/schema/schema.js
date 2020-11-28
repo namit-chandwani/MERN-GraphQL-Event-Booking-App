@@ -110,7 +110,7 @@ const RootQuery = new GraphQLObjectType({
         if (!req.isAuth) {
           throw new Error("Unauthenticated");
         }
-        return Booking.find();
+        return Booking.find({ user: req.userId });
       },
     },
     event: {
@@ -276,7 +276,11 @@ const RootMutation = new GraphQLObjectType({
         if (!req.isAuth) {
           throw new Error("Unauthenticated");
         }
-        return Booking.findByIdAndDelete(args._id);
+        return Booking.findOne({ event: args._id })
+          .then((booking) => {
+            return Booking.findByIdAndDelete(booking._id);
+          })
+          .catch((err) => console.log(err));
       },
     },
   },
