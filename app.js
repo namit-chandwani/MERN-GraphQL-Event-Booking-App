@@ -10,7 +10,7 @@ const isAuth = require("./middlewares/isAuth");
 const app = express();
 require("dotenv").config();
 
-const PORT = 5000 || process.env.PORT;
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(isAuth);
