@@ -11,7 +11,7 @@ import Footer from "./components/Footer";
 import AuthContextProvider from "./context/authContext";
 
 const client = new ApolloClient({
-  uri: "http://localhost:5000/graphql",
+  uri: "/graphql",
   cache: new InMemoryCache(),
   // headers: {
   //   authorization: localStorage.getItem("token") || "",
